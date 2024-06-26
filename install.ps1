@@ -1,8 +1,12 @@
 #$BaseDir = $PWD.Path
 $BaseDirectory = Join-Path -Path $env:USERPROFILE -ChildPath ".zinstaller"
 $SelectedOperatingSystem = "windows"
+
+$ScriptPath = $MyInvocation.MyCommand.Path
+$ScriptDirectory = Split-Path -Parent $ScriptPath
+
 $TemporaryDirectory = "$BaseDirectory\tmp"
-$YamlFilePath = "tools.yml"
+$YamlFilePath = "$ScriptDirectory\tools.yml"
 $ManifestFilePath = "$TemporaryDirectory\manifest.ps1"
 $DownloadDirectory = "$TemporaryDirectory\downloads"
 $WorkDirectory = "$TemporaryDirectory\workdir"
@@ -204,31 +208,31 @@ $Wget = "$ToolsDirectory\wget\$WgetExecutableName"
 
 $UseWget = $true
 
-Print-Title "7Z"
+Print-Title "7-Zip"
 
-$7ZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
+$SevenZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
 
-if ($7ZInstalled) {
+if ($SevenZInstalled) {
     Write-Host "7-Zip is already installed."
 } else {
     Write-Host "7-Zip is not installed. Installing now..."
-    $7ZInstallerName = "7z.exe"
-    Download-FileWithHashCheck $7z_array[0] $7z_array[1] $7ZInstallerName
+    $SevenZInstallerName = "7z.exe"
+    Download-FileWithHashCheck $SevenZ_array[0] $SevenZ_array[1] $SevenZInstallerName
 
-    $7ZInstallerPath = Join-Path -Path $DownloadDirectory -ChildPath $7ZInstallerName
+    $SevenZInstallerPath = Join-Path -Path $DownloadDirectory -ChildPath $SevenZInstallerName
 
-    Start-Process -FilePath $7ZInstallerPath -ArgumentList "/S" -Wait
+    Start-Process -FilePath $SevenZInstallerPath -ArgumentList "/S" -Wait
     Write-Host "7-Zip installation completed."
-    $7ZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
-    if ($7ZInstalled) {
+    $SevenZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
+    if ($SevenZInstalled) {
         Write-Host "7-Zip was installed successfully"
     } else {
         Print-Error 4 "7-Zip was not installed ! Stop here !!"
         exit 4
     }
 }
-$7Z = "C:\Program Files\7-Zip\7z.exe"
-Test-FileExistence -FilePath $7Z
+$SevenZ = "C:\Program Files\7-Zip\7z.exe"
+Test-FileExistence -FilePath $SevenZ
 
 Print-Title "Gperf"
 $GperfZipName = "gperf-3.0.1-bin.zip"
@@ -350,12 +354,12 @@ $DtcPath = "$ToolsDirectory\dtc\usr\bin"
 $GperfPath = "$ToolsDirectory\gperf\bin"
 $NinjaPath = "$ToolsDirectory\ninja"
 $GitPath = "$ToolsDirectory\git"
-$7ZPath = "C:\Program Files\7-Zip"
+$SevenZPath = "C:\Program Files\7-Zip"
 
 $PythonPath = "$ToolsDirectory\python\python-3.10.11.amd64;$ToolsDirectory\python\python-3.10.11.amd64\Scripts"
 $WgetPath = "$ToolsDirectory\wget"
 
-$env:PATH = "$CmakePath;$DtcPath;$GperfPath;$NinjaPath;$PythonPath;$WgetPath;$GitPath;$7ZPath;" + $env:PATH
+$env:PATH = "$CmakePath;$DtcPath;$GperfPath;$NinjaPath;$PythonPath;$WgetPath;$GitPath;$SevenZPath;" + $env:PATH
 
 Print-Title "Install Default Zephyr SDK"
 & "$BaseDirectory\$SdkName\setup.cmd" /c
@@ -381,9 +385,9 @@ set "gperf_path=%TOOLS_DIR%\gperf\bin"
 set "ninja_path=%TOOLS_DIR%\ninja"
 set "wget_path=%TOOLS_DIR%\wget"
 set "git_path=%TOOLS_DIR%\git\bin"
-set "7z_path=C:\Program Files\7-Zip"
+set "SevenZ_path=C:\Program Files\7-Zip"
 
-set "PATH=%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%7z_path%;%PATH%"
+set "PATH=%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%SevenZ_path%;%PATH%"
 
 call "%PYTHON_VENV%\Scripts\activate.bat"
 "@ | Out-File -FilePath "$BaseDirectory\env.bat" -Encoding ASCII
@@ -397,11 +401,11 @@ call "%PYTHON_VENV%\Scripts\activate.bat"
 `$gperf_path = `"$`ToolsDir\gperf\bin`"
 `$ninja_path = `"$`ToolsDir\ninja`"
 `$git_path = `"$`ToolsDir\git\bin`"
-`$7z_path = `"C:\Program Files\7-Zip`"
+`$SevenZ_path = `"C:\Program Files\7-Zip`"
 `$python_path = `"$`ToolsDir\python\python-3.10.11.amd64;$`ToolsDir\python\python-3.10.11.amd64\Scripts`"
 `$wget_path = `"$`ToolsDir\wget`"
 
-`$env:PATH = `"`$cmake_path;`$dtc_path;`$gperf_path;`$ninja_path;`$python_path;`$wget_path;`$git_path;`$7z_path;`" + `$env:PATH
+`$env:PATH = `"`$cmake_path;`$dtc_path;`$gperf_path;`$ninja_path;`$python_path;`$wget_path;`$git_path;`$SevenZ_path;`" + `$env:PATH
 
 . `"`$BaseDir\.venv\Scripts\Activate.ps1`"
 
