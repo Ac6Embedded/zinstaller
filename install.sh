@@ -254,8 +254,8 @@ if [[ $non_root_packages == true ]]; then
     pr_title "Zephyr SDK"
     ZEPHYR_SDK_FOLDER_NAME="zephyr-sdk-0.16.5"
     ZEPHYR_SDK_ARCHIVE_NAME="zephyr-sdk-0.16.5_linux-x86_64.tar.xz"
-#    download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
-#    tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
+    download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
+    tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
 
     if [[ $install_sdk_bool == true ]]; then
         pr_title "Install Zephyr SDK"
