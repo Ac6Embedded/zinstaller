@@ -1,46 +1,84 @@
 #!/bin/bash
 BASE_DIR="$HOME/.zinstaller"
 SELECTED_OS="linux"
-TMP_DIR="$BASE_DIR/tmp"
-MANIFEST_FILE="$TMP_DIR/manifest.sh"
-DL_DIR="$TMP_DIR/downloads"
-TOOLS_DIR="$BASE_DIR/tools"
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 YAML_FILE="$SCRIPT_DIR/tools.yml"
 
 # Default values for the options
-WITH_ROOT=false
-WITHOUT_ROOT=false
+root_packages=true
+non_root_packages=true
+check_installed_bool=true
+install_sdk_bool=false
+INSTALL_DIR=""
 
 # Function to display usage information
 usage() {
-  echo "Usage: $0 [--with-root] [--without-root]"
-  exit 1
+    cat << EOF
+Usage: $0 [OPTIONS] [installDir]
+
+OPTIONS:
+  -h, --help                Show this help message and exit.
+  --only-root               Only install packages that require root privileges.
+  --only-without-root       Only install packages that do not require root privileges.
+  --only-check              Only check the installation status of the packages without installing them.
+  --install-sdk             Additionally install the SDK after installing the packages.
+
+ARGUMENTS:
+  installDir                The directory where the packages should be installed. 
+                            Default is \$HOME/.zinstaller.
+
+DESCRIPTION:
+  This script installs host dependencies for Zephyr project on your system.
+  By default, it installs all necessary packages without installing the SDK. 
+  If no installDir is specified, the default directory is used.
+EOF
+    exit 1
 }
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --with-root)
-      WITH_ROOT=true
+    -h | --help)
+      usage
       ;;
-    --without-root)
-      WITHOUT_ROOT=true
+    --only-root)
+      non_root_packages=false
+      check_installed_bool=false
+      ;;
+    --only-without-root)
+      root_packages=false
+      check_installed_bool=false
+      ;;
+    --only-check)
+      root_packages=false
+      non_root_packages=false
+      ;;
+    --install-sdk)
+      install_sdk_bool=true
       ;;
     *)
-      echo "Unknown option: $1"
-      usage
+      if [[ -z "$INSTALL_DIR" ]]; then
+        INSTALL_DIR="$1/.zinstaller"
+      else
+        echo "Unknown option or multiple installDir values: $1"
+        usage
+      fi
       ;;
   esac
   shift
 done
 
-# Check for mutually exclusive arguments
-if [ "$WITH_ROOT" = true ] && [ "$WITHOUT_ROOT" = true ]; then
-  echo "Error: Cannot run --with-root and --without-root argument at the same time."
-  usage
+# Check if installDir is provided, otherwise set it to BASE_DIR
+if [[ -z "$INSTALL_DIR" ]]; then
+    INSTALL_DIR=$BASE_DIR
 fi
+
+TMP_DIR="$INSTALL_DIR/tmp"
+MANIFEST_FILE="$TMP_DIR/manifest.sh"
+DL_DIR="$TMP_DIR/downloads"
+TOOLS_DIR="$INSTALL_DIR/tools"
+ENV_FILE="$INSTALL_DIR/env.sh"
 
 pr_title() {
     local width=40
@@ -100,8 +138,7 @@ download_and_check_hash() {
     fi
 }
 
-if [ "$WITHOUT_ROOT" = false ]; then
-
+if [[ $root_packages == true ]]; then
     pr_title "Install non portable tools"
 
     if [[ -f /etc/os-release ]]; then
@@ -145,8 +182,7 @@ if [ "$WITHOUT_ROOT" = false ]; then
     fi
 fi
 
-if [ "$WITH_ROOT" = false ]; then
-
+if [[ $non_root_packages == true ]]; then
     mkdir -p "$TMP_DIR"
     mkdir -p "$DL_DIR"
     mkdir -p "$TOOLS_DIR"
@@ -207,7 +243,7 @@ if [ "$WITH_ROOT" = false ]; then
     NINJA_ARCHIVE_NAME="ninja-linux.zip"
     download_and_check_hash ${ninja[source]} ${ninja[sha256]} "$NINJA_ARCHIVE_NAME"
     mkdir -p "$TOOLS_DIR/ninja"
-    unzip "$DL_DIR/$NINJA_ARCHIVE_NAME" -d "$TOOLS_DIR/ninja"
+    unzip -o "$DL_DIR/$NINJA_ARCHIVE_NAME" -d "$TOOLS_DIR/ninja"
 
     pr_title "CMake"
     CMAKE_FOLDER_NAME="cmake-3.29.2-linux-x86_64"
@@ -218,29 +254,31 @@ if [ "$WITH_ROOT" = false ]; then
     pr_title "Zephyr SDK"
     ZEPHYR_SDK_FOLDER_NAME="zephyr-sdk-0.16.5"
     ZEPHYR_SDK_ARCHIVE_NAME="zephyr-sdk-0.16.5_linux-x86_64.tar.xz"
-    download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
-    tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$BASE_DIR"
+#    download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
+#    tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
 
-    pr_title "Install Zephyr SDK"
-    yes | bash "$TOOLS_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
-
+    if [[ $install_sdk_bool == true ]]; then
+        pr_title "Install Zephyr SDK"
+        yes | bash "$TOOLS_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
+    fi
+	
     pr_title "Python Requirements"
     REQUIREMENTS_NAME="requirements-3.6.0"
     REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
     download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
-    unzip "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
+    unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
 
-    cmake_path="$BASE_DIR/tools/$CMAKE_FOLDER_NAME/bin"
-    python_path="$BASE_DIR/tools/$PYTHON_FOLDER_NAME/bin"
-    ninja_path="$BASE_DIR/tools/ninja"
-    openssl_path="$BASE_DIR/tools/$OPENSSL_FOLDER_NAME"
+    cmake_path="$INSTALL_DIR/tools/$CMAKE_FOLDER_NAME/bin"
+    python_path="$INSTALL_DIR/tools/$PYTHON_FOLDER_NAME/bin"
+    ninja_path="$INSTALL_DIR/tools/ninja"
+    openssl_path="$INSTALL_DIR/tools/$OPENSSL_FOLDER_NAME"
 
     export PATH="$python_path:$ninja_path:$cmake_path:$openssl_path/usr/local/bin:$PATH"
     export LD_LIBRARY_PATH="$openssl_path/usr/local/lib:$LD_LIBRARY_PATH"
 
     pr_title "Python VENV"
-    python3 -m venv $BASE_DIR/.venv
-    source $BASE_DIR/.venv/bin/activate
+    python3 -m venv $INSTALL_DIR/.venv
+    source $INSTALL_DIR/.venv/bin/activate
     python3 -m pip install setuptools west py
     python3 -m pip install -r "$TMP_DIR/$REQUIREMENTS_NAME/requirements.txt" --quiet
 
@@ -274,10 +312,117 @@ fi
 EOF
     }
 
-    env_script > $BASE_DIR/env.sh
+    env_script > $ENV_FILE
 
-    echo "Source me: . $BASE_DIR/env.sh"
+    echo "Source me: . $ENV_FILE"
+    
+	pr_title "Clean up"
+    rm -rf $TMP_DIR
 fi
 
-#pr_title "Clean up"
-#rm -rf $TMP_DIR
+#!/bin/bash
+
+check_packages() {
+    # Default list of packages to check if no argument is passed
+    default_packages=(
+        python
+        cmake
+        ninja
+        openssl
+        git
+        gperf
+        ccache
+        dfu-util
+        wget
+        xz-utils
+        file
+        make
+    )
+
+    # Use provided packages if any, otherwise use the default list
+    if [ $# -gt 0 ]; then
+        packages=($@)
+    else
+        packages=("${default_packages[@]}")
+    fi
+
+    # Initialize a counter for missing packages
+    missing_count=0
+
+    # Function to check if a package is installed and print the version
+    check_package() {
+        local package=$1
+        local version_command
+        local version
+
+        case $package in
+            python) version_command="python3 --version 2>&1" ;;
+            cmake) version_command="cmake --version 2>&1 | head -n 1" ;;
+            ninja) version_command="ninja --version 2>&1" ;;
+            openssl) version_command="openssl version 2>&1" ;;
+            git) version_command="git --version 2>&1" ;;
+            gperf) version_command="gperf --version 2>&1 | head -n 1" ;;
+            ccache) version_command="ccache --version 2>&1 | head -n 1" ;;
+            dfu-util) version_command="dfu-util --version 2>&1 | head -n 1" ;;
+            wget) version_command="wget --version 2>&1 | head -n 1" ;;
+            xz-utils) version_command="xz --version 2>&1 | head -n 1" ;;
+            file) version_command="file --version 2>&1 | head -n 1" ;;
+            make) version_command="make --version 2>&1 | head -n 1" ;;
+            *) echo "$package [NOT INSTALLED]" && return 1 ;;
+        esac
+
+        version=$(eval $version_command)
+
+        if [[ $? -ne 0 || -z $version ]]; then
+            echo "$package [NOT INSTALLED]"
+            return 1
+        else
+            # Extract version number or short relevant info
+            case $package in
+                python) version=$(echo "$version" | grep -oP 'Python \K[^\s]+') ;;
+                cmake) version=$(echo "$version" | grep -oP 'cmake version \K[^\s]+') ;;
+                ninja) version=$(echo "$version") ;;
+                openssl) version=$(echo "$version" | grep -oP 'OpenSSL \K[^\s]+') ;;
+                git) version=$(echo "$version" | grep -oP 'git version \K[^\s]+') ;;
+                gperf) version=$(echo "$version" | grep -oP 'GNU gperf \K[^\s]+') ;;
+                ccache) version=$(echo "$version" | grep -oP 'ccache version \K[^\s]+') ;;
+                dfu-util) version=$(echo "$version" | grep -oP 'dfu-util \K[^\s]+') ;;
+                wget) version=$(echo "$version" | grep -oP 'GNU Wget \K[^\s]+') ;;
+                xz-utils) version=$(echo "$version" | grep -oP 'xz \(XZ Utils\) \K[^\s]+') ;;
+                file) version=$(echo "$version" | grep -oP 'file-\K[^\s]+') ;;
+                make) version=$(echo "$version" | grep -oP 'GNU Make \K[^\s]+') ;;
+            esac
+            echo "$package [$version]"
+            return 0
+        fi
+    }
+
+    # Loop through each package and check if it is installed
+    for pkg in "${packages[@]}"; do
+        check_package $pkg || missing_count=$((missing_count + 1))
+    done
+
+    # Return minus the number of missing packages, or 0 if none are missing
+    if [ $missing_count -gt 0 ]; then
+        return -$missing_count
+    else
+        return 0
+    fi
+}
+
+if [[ $check_installed_bool == true ]]; then
+    pr_title "Check Installed Packages"
+
+    check_packages
+
+    RETURN_CODE=$?
+
+    if [ $RETURN_CODE -eq 0 ]; then
+    echo "All specified packages are installed."
+    else
+        MISSING_PACKAGES=$(( -RETURN_CODE ))
+        pr_error $RETURN_CODE "$MISSING_PACKAGES package(s) are not installed."
+    fi
+
+    exit $RETURN_CODE
+fi
