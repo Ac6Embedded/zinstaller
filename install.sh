@@ -320,7 +320,54 @@ EOF
     rm -rf $TMP_DIR
 fi
 
-#!/bin/bash
+# Function to check if a package is installed and print the version
+check_package() {
+	local package=$1
+	local version_command
+	local version
+
+	case $package in
+		python) version_command="python3 --version 2>&1" ;;
+		cmake) version_command="cmake --version 2>&1 | head -n 1" ;;
+		ninja) version_command="ninja --version 2>&1" ;;
+		openssl) version_command="openssl version 2>&1" ;;
+		git) version_command="git --version 2>&1" ;;
+		gperf) version_command="gperf --version 2>&1 | head -n 1" ;;
+		ccache) version_command="ccache --version 2>&1 | head -n 1" ;;
+		dfu-util) version_command="dfu-util --version 2>&1 | head -n 1" ;;
+		wget) version_command="wget --version 2>&1 | head -n 1" ;;
+		xz-utils) version_command="xz --version 2>&1 | head -n 1" ;;
+		file) version_command="file --version 2>&1 | head -n 1" ;;
+		make) version_command="make --version 2>&1 | head -n 1" ;;
+		*) echo "$package [NOT INSTALLED]" && return 1 ;;
+	esac
+
+	version=$(eval $version_command)
+
+	if [[ $? -ne 0 || -z $version ]]; then
+		echo "$package [NOT INSTALLED]"
+		return 1
+	else
+		# Extract version number or short relevant info
+		case $package in
+			python) version=$(echo "$version" | grep -oP 'Python \K[^\s]+') ;;
+			cmake) version=$(echo "$version" | grep -oP 'cmake version \K[^\s]+') ;;
+			ninja) version=$(echo "$version") ;;
+			openssl) version=$(echo "$version" | grep -oP 'OpenSSL \K[^\s]+') ;;
+			git) version=$(echo "$version" | grep -oP 'git version \K[^\s]+') ;;
+			gperf) version=$(echo "$version" | grep -oP 'GNU gperf \K[^\s]+') ;;
+			ccache) version=$(echo "$version" | grep -oP 'ccache version \K[^\s]+') ;;
+			dfu-util) version=$(echo "$version" | grep -oP 'dfu-util \K[^\s]+') ;;
+			wget) version=$(echo "$version" | grep -oP 'GNU Wget \K[^\s]+') ;;
+			xz-utils) version=$(echo "$version" | grep -oP 'xz \(XZ Utils\) \K[^\s]+') ;;
+			file) version=$(echo "$version" | grep -oP 'file-\K[^\s]+') ;;
+			make) version=$(echo "$version" | grep -oP 'GNU Make \K[^\s]+') ;;
+		esac
+		echo "$package [$version]"
+		return 0
+	fi
+}
+
 
 check_packages() {
     # Default list of packages to check if no argument is passed
@@ -348,54 +395,6 @@ check_packages() {
 
     # Initialize a counter for missing packages
     missing_count=0
-
-    # Function to check if a package is installed and print the version
-    check_package() {
-        local package=$1
-        local version_command
-        local version
-
-        case $package in
-            python) version_command="python3 --version 2>&1" ;;
-            cmake) version_command="cmake --version 2>&1 | head -n 1" ;;
-            ninja) version_command="ninja --version 2>&1" ;;
-            openssl) version_command="openssl version 2>&1" ;;
-            git) version_command="git --version 2>&1" ;;
-            gperf) version_command="gperf --version 2>&1 | head -n 1" ;;
-            ccache) version_command="ccache --version 2>&1 | head -n 1" ;;
-            dfu-util) version_command="dfu-util --version 2>&1 | head -n 1" ;;
-            wget) version_command="wget --version 2>&1 | head -n 1" ;;
-            xz-utils) version_command="xz --version 2>&1 | head -n 1" ;;
-            file) version_command="file --version 2>&1 | head -n 1" ;;
-            make) version_command="make --version 2>&1 | head -n 1" ;;
-            *) echo "$package [NOT INSTALLED]" && return 1 ;;
-        esac
-
-        version=$(eval $version_command)
-
-        if [[ $? -ne 0 || -z $version ]]; then
-            echo "$package [NOT INSTALLED]"
-            return 1
-        else
-            # Extract version number or short relevant info
-            case $package in
-                python) version=$(echo "$version" | grep -oP 'Python \K[^\s]+') ;;
-                cmake) version=$(echo "$version" | grep -oP 'cmake version \K[^\s]+') ;;
-                ninja) version=$(echo "$version") ;;
-                openssl) version=$(echo "$version" | grep -oP 'OpenSSL \K[^\s]+') ;;
-                git) version=$(echo "$version" | grep -oP 'git version \K[^\s]+') ;;
-                gperf) version=$(echo "$version" | grep -oP 'GNU gperf \K[^\s]+') ;;
-                ccache) version=$(echo "$version" | grep -oP 'ccache version \K[^\s]+') ;;
-                dfu-util) version=$(echo "$version" | grep -oP 'dfu-util \K[^\s]+') ;;
-                wget) version=$(echo "$version" | grep -oP 'GNU Wget \K[^\s]+') ;;
-                xz-utils) version=$(echo "$version" | grep -oP 'xz \(XZ Utils\) \K[^\s]+') ;;
-                file) version=$(echo "$version" | grep -oP 'file-\K[^\s]+') ;;
-                make) version=$(echo "$version" | grep -oP 'GNU Make \K[^\s]+') ;;
-            esac
-            echo "$package [$version]"
-            return 0
-        fi
-    }
 
     # Loop through each package and check if it is installed
     for pkg in "${packages[@]}"; do
