@@ -10,6 +10,7 @@ root_packages=true
 non_root_packages=true
 check_installed_bool=true
 install_sdk_bool=false
+reinstall_venv_bool=false
 INSTALL_DIR=""
 
 # Function to display usage information
@@ -23,6 +24,7 @@ OPTIONS:
   --only-without-root       Only install packages that do not require root privileges.
   --only-check              Only check the installation status of the packages without installing them.
   --install-sdk             Additionally install the SDK after installing the packages.
+  --reinstall-venv          Remove existing virtual environment and create a new one.
 
 ARGUMENTS:
   installDir                The directory where the packages should be installed. 
@@ -56,6 +58,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --install-sdk)
       install_sdk_bool=true
+      ;;
+    --reinstall-venv)
+      reinstall_venv_bool=true
+      root_packages=false
+      check_installed_bool=false
       ;;
     *)
       if [[ -z "$INSTALL_DIR" ]]; then
@@ -116,7 +123,7 @@ download_and_check_hash() {
     local file_path="$DL_DIR/$filename"
 
     # Download the file using wget
-    wget -q "$source" -O "$file_path"
+    wget --no-check-certificate -q "$source" -O "$file_path"
 
     # Check if the download was successful
     if [ ! -f "$file_path" ]; then
@@ -136,6 +143,23 @@ download_and_check_hash() {
         pr_error 2 "Computed: $computed_hash"
         exit 2
     fi
+}
+
+install_python_venv() {
+    local install_directory=$1
+    local work_directory=$2
+
+    pr_title "Python Requirements"
+    REQUIREMENTS_NAME="requirements-3.6.0"
+    REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
+
+    download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
+    unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
+    
+    python3 -m venv "$install_directory/.venv"
+    source "$install_directory/.venv/bin/activate"
+    python3 -m pip install setuptools wheel west --quiet
+    python3 -m pip install -r "$work_directory/$REQUIREMENTS_NAME/requirements.txt" --quiet
 }
 
 if [[ $root_packages == true ]]; then
@@ -227,6 +251,17 @@ if [[ $non_root_packages == true ]]; then
 
     source $MANIFEST_FILE
 
+	if [[ $reinstall_venv_bool == true ]]; then
+		pr_title "Reinstalling Python VENV"
+		if [ -d "$INSTALL_DIR/.venv" ]; then
+			rm -rf "$INSTALL_DIR/.venv"
+		fi
+		source "$ENV_FILE" &> /dev/null
+		install_python_venv "$INSTALL_DIR" "$TMP_DIR"
+	    rm -rf $TMP_DIR
+		exit 0
+	fi
+	
     pr_title "OpenSSL"
     OPENSSL_FOLDER_NAME="openssl-1.1.1t"
     OPENSSL_ARCHIVE_NAME="openssl-1.1.1t.tar.bz2"
@@ -262,12 +297,6 @@ if [[ $non_root_packages == true ]]; then
         yes | bash "$TOOLS_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
     fi
 	
-    pr_title "Python Requirements"
-    REQUIREMENTS_NAME="requirements-3.6.0"
-    REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
-    download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
-    unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
-
     cmake_path="$INSTALL_DIR/tools/$CMAKE_FOLDER_NAME/bin"
     python_path="$INSTALL_DIR/tools/$PYTHON_FOLDER_NAME/bin"
     ninja_path="$INSTALL_DIR/tools/ninja"
@@ -277,10 +306,7 @@ if [[ $non_root_packages == true ]]; then
     export LD_LIBRARY_PATH="$openssl_path/usr/local/lib:$LD_LIBRARY_PATH"
 
     pr_title "Python VENV"
-    python3 -m venv $INSTALL_DIR/.venv
-    source $INSTALL_DIR/.venv/bin/activate
-    python3 -m pip install setuptools west py
-    python3 -m pip install -r "$TMP_DIR/$REQUIREMENTS_NAME/requirements.txt" --quiet
+	install_python_venv "$INSTALL_DIR" "$TMP_DIR"
 
     if ! command -v west &> /dev/null; then
     echo "West is not available. Something is wrong !!"
