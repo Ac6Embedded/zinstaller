@@ -1,6 +1,7 @@
 param (
     [string]$InstallDir = "$env:USERPROFILE\.zinstaller",
-    [switch]$OnlyCheck
+    [switch]$OnlyCheck,
+    [switch]$ReinstallVenv
 )
 
 #$BaseDir = $PWD.Path
@@ -18,6 +19,7 @@ Options:
   -h, --help, /?         Show this help message and exit.
   -OnlyCheck             Perform only a check for required software packages without installing.
   -InstallSdk            Additionally install the SDK after installing the packages.
+  -ReinstallVenv         Remove .venv folder, create a new .venv, install requirements and west
 
 Arguments:
   InstallDir             Optional. The directory where the Zephyr environment will be installed. Defaults to '$env:USERPROFILE\.zinstaller'.
@@ -26,6 +28,7 @@ Examples:
   install.ps1
   install.ps1 "C:\my\install\path"
   install.ps1 -OnlyCheck
+  install.ps1 -ReinstallVenv
   install.ps1 "C:\my\install\path" -OnlyCheck
 "@
     Write-Host $helpText
@@ -87,7 +90,28 @@ function Print-Warning {
     Write-Output "WARN: $Message"
 }
 
-if (! $OnlyCheck) {
+function Install-PythonVenv {
+    param (
+        [string]$InstallDirectory,
+        [string]$WorkDirectory,
+        [string]$RequirementName
+    )
+	
+    Print-Title "Requirements"
+	$RequirementName = "requirements-3.6.0"
+    $RequirementZipName =  $RequirementName + ".zip"
+    Download-FileWithHashCheck $python_requirements_array[0] $python_requirements_array[1] $RequirementZipName
+    Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$RequirementZipName" -DestinationDirectory "$WorkDirectory"
+
+    python -m venv "$InstallDirectory\.venv"
+    . "$InstallDirectory\.venv\Scripts\Activate.ps1"
+    python -m pip install setuptools wheel west --quiet
+    python -m pip install -r "$WorkDirectory\$RequirementName\requirements.txt" --quiet
+}
+
+
+
+if (! $OnlyCheck -or $ReinstallVenv) {
 
     # Create directories if they do not exist, and suppress output
     New-Item -Path $InstallDirectory -ItemType Directory -Force > $null 2>&1
@@ -275,6 +299,19 @@ if (! $OnlyCheck) {
     $SevenZ = "C:\Program Files\7-Zip\7z.exe"
     Test-FileExistence -FilePath $SevenZ
     
+	if ($ReinstallVenv) {
+		Print-Title "Reinstalling Python VENV"
+		if (Test-Path -Path "$InstallDirectory\.venv") {
+			Remove-Item -Path "$InstallDirectory\.venv" -Recurse -Force
+		}
+
+		. "$BaseDirectory\env.ps1" *>$null
+
+		Install-PythonVenv -InstallDirectory $InstallDirectory -WorkDirectory $WorkDirectory -RequirementName $RequirementName
+	    Remove-Item -Path $TemporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
+		exit
+	}
+	
     Print-Title "Gperf"
     $GperfZipName = "gperf-3.0.1-bin.zip"
     $GperfInstallDirectory = "$ToolsDirectory\gperf"
@@ -387,13 +424,7 @@ if (! $OnlyCheck) {
        Remove-Item -Path $ToolsDirectory\python -Recurse -Force
     }
     Rename-Item -Path "$ToolsDirectory\$PythonFolderName" -NewName "python"
-    
-    Print-Title "Requirements"
-    $RequirementName = "requirements-3.6.0"
-    $RequirementZipName =  $RequirementName + ".zip"
-    Download-FileWithHashCheck $python_requirements_array[0] $python_requirements_array[1] $RequirementZipName
-    Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$RequirementZipName" -DestinationDirectory "$WorkDirectory"
-    
+       
     # Update path
     $CmakePath = "$ToolsDirectory\cmake\bin"
     $DtcPath = "$ToolsDirectory\dtc\usr\bin"
@@ -412,13 +443,7 @@ if (! $OnlyCheck) {
         & "$InstallDirectory\$SdkName\setup.cmd" /c
     }
     Print-Title "Python VENV"
-    
-    # Create and activate virtual environment
-    python -m venv "$InstallDirectory\.venv"
-    . "$InstallDirectory\.venv\Scripts\Activate.ps1"
-    
-    python -m pip install setuptools wheel west --quiet
-    python -m pip install -r "$WorkDirectory\$RequirementName\requirements.txt" --quiet
+    Install-PythonVenv -InstallDirectory $InstallDirectory -WorkDirectory $WorkDirectory -RequirementName $RequirementName
     
 @"
 @echo off
