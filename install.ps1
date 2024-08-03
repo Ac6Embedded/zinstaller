@@ -424,7 +424,8 @@ if (! $OnlyCheck -or $ReinstallVenv) {
        Remove-Item -Path $ToolsDirectory\python -Recurse -Force
     }
     Rename-Item -Path "$ToolsDirectory\$PythonFolderName" -NewName "python"
-       
+    Copy-Item -Path "$ToolsDirectory\python\python-3.10.11.amd64\python.exe" -Destination "$ToolsDirectory\python\python-3.10.11.amd64\python3.exe"
+
     # Update path
     $CmakePath = "$ToolsDirectory\cmake\bin"
     $DtcPath = "$ToolsDirectory\dtc\usr\bin"
@@ -457,9 +458,10 @@ set "gperf_path=%TOOLS_DIR%\gperf\bin"
 set "ninja_path=%TOOLS_DIR%\ninja"
 set "wget_path=%TOOLS_DIR%\wget"
 set "git_path=%TOOLS_DIR%\git\bin"
+set "python_path=%TOOLS_DIR%\python\python-3.10.11.amd64;%TOOLS_DIR%\python\python-3.10.11.amd64\Scripts;"
 set "SevenZ_path=C:\Program Files\7-Zip"
 
-set "PATH=%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%SevenZ_path%;%PATH%"
+set "PATH=%python_path%;%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%SevenZ_path%;%PATH%"
 
 call "%PYTHON_VENV%\Scripts\activate.bat"
 "@ | Out-File -FilePath "$InstallDirectory\env.bat" -Encoding ASCII
