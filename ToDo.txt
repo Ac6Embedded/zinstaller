@@ -1,2 +1,0 @@
-install python global support
-sdk add option to install specific versions of the sdk not everything
