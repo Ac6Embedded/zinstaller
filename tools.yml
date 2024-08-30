@@ -15,11 +15,16 @@ other_content:
     windows:
       source: https://eternallybored.org/misc/wget/1.21.4/64/wget.exe
       sha256: 6136e66e41acd14c409c2d3eb10d48a32febaba04267303d0460ed3bee746cc5
-- tool: SevenZ
+- tool: seven_z
   os:
     windows:
       source: https://www.7-zip.org/a/7z2405-x64.exe
       sha256: 12EF1C8127EC3465520E4CFD23605B708D81A5A2CF37BA124F018E5C094DE0D9
+- tool: seven_z_portable
+  os:
+    windows:
+      source: https://cloud.ac6.fr/index.php/s/ES63tZ6zfJANkJD/download
+      sha256: 07c508289d4dd0a90b8a4622affec1a418f0d61d732dea2a6e7d928cc25a07de
 - tool: zstd
   os:
     windows:
@@ -100,19 +105,19 @@ zephyr_content:
       source: https://cloud.ac6.fr/index.php/s/XzHWd8kpJnicKE5/download
       sha256: 29ce5c3cc566688d972f4e355d399cfe80fbb5d77dce413d2259a6bf4134ff04
     windows:
-      source: https://github.com/winpython/winpython/releases/download/6.1.20230527/Winpython64-3.10.11.1dot.exe
-      sha256: ec9345932a86101f15b6171fc261b5a7dca1d71095f6e87fe88ec8bdd099b030
+      source: https://github.com/winpython/winpython/releases/download/7.1.20240203final/Winpython64-3.11.8.0dot.exe
+      sha256: 54c501574df21c3c1883fda4f5e8ff73883ede72844ae6700252143ecc024d47
     darwin:
       source: xxx
       sha256: xxx
 - tool: python_requirements
   os:
     windows:
-      source: https://cloud.ac6.fr/index.php/s/g7fiAcgysNjmK8b/download
-      sha256: 23af5ed22a13f67f6305f8ec3d0c8ee951b39569a7eda8d5aaab8c946eb973fd
+      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
     linux:
-      source: https://cloud.ac6.fr/index.php/s/g7fiAcgysNjmK8b/download
-      sha256: 23af5ed22a13f67f6305f8ec3d0c8ee951b39569a7eda8d5aaab8c946eb973fd
+      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
     darwin:
-      source: https://cloud.ac6.fr/index.php/s/g7fiAcgysNjmK8b/download
-      sha256: 23af5ed22a13f67f6305f8ec3d0c8ee951b39569a7eda8d5aaab8c946eb973fd
+      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a

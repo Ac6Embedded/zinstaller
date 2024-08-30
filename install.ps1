@@ -1,25 +1,35 @@
 param (
-    [string]$InstallDir = "$env:USERPROFILE\.zinstaller",
+    [string]$InstallDir = "$env:USERPROFILE",
     [switch]$OnlyCheck,
-    [switch]$ReinstallVenv
+    [switch]$ReinstallVenv,
+    [switch]$Global,
+    [switch]$Help,
+    [switch]$Version
 )
 
-#$BaseDir = $PWD.Path
-$BaseDirectory = Join-Path -Path $env:USERPROFILE -ChildPath ".zinstaller"
 $SelectedOperatingSystem = "windows"
 
 $ScriptPath = $MyInvocation.MyCommand.Path
 $ScriptDirectory = Split-Path -Parent $ScriptPath
+$YamlFilePath = "$ScriptDirectory\tools.yml"
+
+$ZinstallerVersion="1.1"
+$ZinstallerMd5 = Get-FileHash -Path $ScriptPath -Algorithm MD5 | Select-Object -ExpandProperty Hash
+$ToolsYmlMd5 = Get-FileHash -Path $YamlFilePath -Algorithm MD5 | Select-Object -ExpandProperty Hash
 
 function Show-Help {
     $helpText = @"
 Usage: install.ps1 [options] [InstallDir]
 
+Description: Install Windows Host Dependencies for Zephyr Project
+
 Options:
-  -h, --help, /?         Show this help message and exit.
+  -Help                  Show this help message and exit.
+  -Version               Show version and hash of the current script
   -OnlyCheck             Perform only a check for required software packages without installing.
   -InstallSdk            Additionally install the SDK after installing the packages.
   -ReinstallVenv         Remove .venv folder, create a new .venv, install requirements and west
+  -Global                Install Python and 7z as global packages (not portable)
 
 Arguments:
   InstallDir             Optional. The directory where the Zephyr environment will be installed. Defaults to '$env:USERPROFILE\.zinstaller'.
@@ -35,20 +45,28 @@ Examples:
 }
 
 # Check for help flag
-if ($args.Count -gt 0 -and ($args[0] -eq "-h" -or $args[0] -eq "--help" -or $args[0] -eq "/?")) {
+if ($Help) {
     Show-Help
     exit
 }
 
-# Check if an install directory argument is provided
-if ($args.Count -gt 0) {
-    $InstallDirectory = Join-Path -Path $InstallDir -ChildPath ".zinstaller"
-} else {
-    $InstallDirectory = $BaseDirectory
+if ($Version) {
+    Write-Output "${ZinstallerVersion}+${ZinstallerMd5}"
+    exit
 }
 
+# Check if an install directory argument is provided
+$InstallDirectory = Join-Path -Path $InstallDir -ChildPath ".zinstaller"
+
+# Check if the path is relative and convert it to absolute based on the current working directory
+if (-not [System.IO.Path]::IsPathRooted($InstallDirectory)) {
+    $CurrentDirectory = (Get-Location).Path
+    $InstallDirectory = Join-Path -Path $CurrentDirectory -ChildPath $InstallDirectory
+}
+
+Write-Output "Install directory: $InstallDirectory"
+
 $TemporaryDirectory = "$InstallDirectory\tmp"
-$YamlFilePath = "$ScriptDirectory\tools.yml"
 $ManifestFilePath = "$TemporaryDirectory\manifest.ps1"
 $DownloadDirectory = "$TemporaryDirectory\downloads"
 $WorkDirectory = "$TemporaryDirectory\workdir"
@@ -98,7 +116,7 @@ function Install-PythonVenv {
     )
 	
     Print-Title "Requirements"
-	$RequirementName = "requirements-3.6.0"
+	$RequirementName = "requirements"
     $RequirementZipName =  $RequirementName + ".zip"
     Download-FileWithHashCheck $python_requirements_array[0] $python_requirements_array[1] $RequirementZipName
     Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$RequirementZipName" -DestinationDirectory "$WorkDirectory"
@@ -138,8 +156,11 @@ if (! $OnlyCheck -or $ReinstallVenv) {
             # Using wget for downloading
             & $Wget -q $SourceUrl -O $FilePath
         } else {
-            # Using Invoke-WebRequest for downloading
-            Invoke-WebRequest -Uri $SourceUrl -OutFile $FilePath -ErrorAction Stop
+            # Using Invoke-WebRequest for downloading, make it silent, if not it will be very slow
+            & {
+                 $ProgressPreference = 'SilentlyContinue'
+                 Invoke-WebRequest -Uri $SourceUrl -OutFile $FilePath -ErrorAction Stop
+            }
         }   
         # Check if the download was successful
         if (-Not (Test-Path -Path $FilePath)) {
@@ -279,30 +300,56 @@ if (! $OnlyCheck -or $ReinstallVenv) {
     
     if ($SevenZInstalled) {
         Write-Host "7-Zip is already installed."
-    } else {
-        Write-Host "7-Zip is not installed. Installing now..."
-        $SevenZInstallerName = "7z.exe"
-        Download-FileWithHashCheck $SevenZ_array[0] $SevenZ_array[1] $SevenZInstallerName
-    
-        $SevenZInstallerPath = Join-Path -Path $DownloadDirectory -ChildPath $SevenZInstallerName
-    
-        Start-Process -FilePath $SevenZInstallerPath -ArgumentList "/S" -Wait
-        Write-Host "7-Zip installation completed."
-        $SevenZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
-        if ($SevenZInstalled) {
-            Write-Host "7-Zip was installed successfully"
-        } else {
-            Print-Error 4 "7-Zip was not installed ! Stop here !!"
-            exit 4
+		$SevenZ = "C:\Program Files\7-Zip\7z.exe"
+		$SevenZPath = "C:\Program Files\7-Zip"
+
+		if (-Not (Test-Path -Path $SevenZ)) {
+			#maybe 7z 32 bits installed
+		    $SevenZ = "C:\Program Files (x86)\7-Zip\7z.exe"
+		    $SevenZPath = "C:\Program Files (x86)\7-Zip"
         }
+		
+		Test-FileExistence -FilePath $SevenZ
+		#if 7z installed in a non default place it will fail, you should use the portable version without -Global
+    } else {
+        Write-Host "7-Zip is not installed."
+		if($Global) {
+            Write-Host "Installing now 7z Global..."
+            $SevenZInstallerName = "7z.exe"
+            Download-FileWithHashCheck $seven_z_array[0] $seven_z_array[1] $SevenZInstallerName
+		
+            $SevenZInstallerPath = Join-Path -Path $DownloadDirectory -ChildPath $SevenZInstallerName
+		
+            Start-Process -FilePath $SevenZInstallerPath -ArgumentList "/S" -Wait
+            Write-Host "7-Zip installation completed."
+            $SevenZInstalled = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -like "*7-Zip*" }
+            if ($SevenZInstalled) {
+            	Write-Host "7-Zip was installed successfully"
+            } else {
+            	Print-Error 4 "7-Zip was not installed ! Stop here !!"
+            	exit 4
+            }
+            $SevenZ = "C:\Program Files\7-Zip\7z.exe"
+			$SevenZPath = "C:\Program Files\7-Zip"
+			Test-FileExistence -FilePath $SevenZ
+		} else {
+            Write-Host "Installing now 7z Portable..."
+            $SevenZPortableFolderName = "7-Zip"
+            $SevenZPortableInstallerName = "7-Zip.exe"
+            Download-FileWithHashCheck $seven_z_portable_array[0] $seven_z_portable_array[1] $SevenZPortableInstallerName
+            Start-Process -FilePath "$DownloadDirectory\$SevenZPortableInstallerName" -ArgumentList "-o${ToolsDirectory} -y" -Wait
+
+            $SevenZ = "$ToolsDirectory\$SevenZPortableFolderName\7z.exe"
+			Test-FileExistence -FilePath $SevenZ
+			$SevenZPath = "$ToolsDirectory\$SevenZPortableFolderName"
+		}
+		Write-Host "7-Zip Portable installation completed."
     }
-    $SevenZ = "C:\Program Files\7-Zip\7z.exe"
-    Test-FileExistence -FilePath $SevenZ
     
 	if ($ReinstallVenv) {
 		Print-Title "Reinstalling Python VENV"
 		if (Test-Path -Path "$InstallDirectory\.venv") {
-			Remove-Item -Path "$InstallDirectory\.venv" -Recurse -Force
+            Remove-Item -Path "$InstallDirectory\.venv" -Recurse -Force
 		}
 
 		. "$BaseDirectory\env.ps1" *>$null
@@ -408,23 +455,24 @@ if (! $OnlyCheck -or $ReinstallVenv) {
     Print-Title "Default Zephyr SDK"
     $SdkName = "zephyr-sdk-0.16.8"
     $SdkZipName = $SdkName + "_windows-x86_64.7z"
-    Download-FileWithHashCheck $zephyr_sdk_array[0] $zephyr_sdk_array[1] $SdkZipName
-    Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$SdkZipName" -DestinationDirectory "$InstallDirectory"
+    #Download-FileWithHashCheck $zephyr_sdk_array[0] $zephyr_sdk_array[1] $SdkZipName
+    #Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$SdkZipName" -DestinationDirectory "$InstallDirectory"
     
     Print-Title "Python"
-    $PythonSetupFilename = "Winpython64-3.10.11.1.exe"
-    Download-FileWithHashCheck $python_array[0] $python_array[1] $PythonSetupFilename
+    $WinPythonSetupFilename = "Winpython64.exe"
+    Download-FileWithHashCheck $python_array[0] $python_array[1] $WinPythonSetupFilename
     
-    $PythonFolderName = "WPy64-310111"
+    $WinPythonVersion = "3.11.8"
     $PythonInstallDirectory = "$ToolsDirectory\python"
     
     # Extract and wait
-    Start-Process -FilePath "$DownloadDirectory\$PythonSetupFilename" -ArgumentList "-o`"$ToolsDirectory`" -y" -Wait
+    Start-Process -FilePath "$DownloadDirectory\$WinPythonSetupFilename" -ArgumentList "-o`"$ToolsDirectory`" -y" -Wait
 	if (Test-Path -Path $ToolsDirectory\python) {
        Remove-Item -Path $ToolsDirectory\python -Recurse -Force
     }
-    Rename-Item -Path "$ToolsDirectory\$PythonFolderName" -NewName "python"
-    Copy-Item -Path "$ToolsDirectory\python\python-3.10.11.amd64\python.exe" -Destination "$ToolsDirectory\python\python-3.10.11.amd64\python3.exe"
+	#Rename the folder that starts with WPy64- to python
+    Rename-Item -Path (Get-ChildItem -Directory -Filter "WPy64-*" -Path $ToolsDirectory | Select-Object -First 1).FullName -NewName "python"
+    Copy-Item -Path "$ToolsDirectory\python\python-${WinPythonVersion}.amd64\python.exe" -Destination "$ToolsDirectory\python\python-${WinPythonVersion}.amd64\python3.exe"
 
     # Update path
     $CmakePath = "$ToolsDirectory\cmake\bin"
@@ -432,9 +480,9 @@ if (! $OnlyCheck -or $ReinstallVenv) {
     $GperfPath = "$ToolsDirectory\gperf\bin"
     $NinjaPath = "$ToolsDirectory\ninja"
     $GitPath = "$ToolsDirectory\git"
-    $SevenZPath = "C:\Program Files\7-Zip"
+    # $SevenZPath already defined previously based on portable or global
     
-    $PythonPath = "$ToolsDirectory\python\python-3.10.11.amd64;$ToolsDirectory\python\python-3.10.11.amd64\Scripts"
+    $PythonPath = "$ToolsDirectory\python\python-${WinPythonVersion}.amd64;$ToolsDirectory\python\python-${WinPythonVersion}.amd64\Scripts"
     $WgetPath = "$ToolsDirectory\wget"
     
     $env:PATH = "$CmakePath;$DtcPath;$GperfPath;$NinjaPath;$PythonPath;$WgetPath;$GitPath;$SevenZPath;" + $env:PATH
@@ -458,10 +506,10 @@ set "gperf_path=%TOOLS_DIR%\gperf\bin"
 set "ninja_path=%TOOLS_DIR%\ninja"
 set "wget_path=%TOOLS_DIR%\wget"
 set "git_path=%TOOLS_DIR%\git\bin"
-set "python_path=%TOOLS_DIR%\python\python-3.10.11.amd64;%TOOLS_DIR%\python\python-3.10.11.amd64\Scripts;"
-set "SevenZ_path=C:\Program Files\7-Zip"
+set "python_path=%TOOLS_DIR%\python\python-${WinPythonVersion}.amd64;%TOOLS_DIR%\python\python-${WinPythonVersion}.amd64\Scripts;"
+set "seven_z_path=$SevenZPath"
 
-set "PATH=%python_path%;%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%SevenZ_path%;%PATH%"
+set "PATH=%python_path%;%cmake_path%;%dtc_path%;%gperf_path%;%ninja_path%;%wget_path%;%git_path%;%seven_z_path%;%PATH%"
 
 call "%PYTHON_VENV%\Scripts\activate.bat"
 "@ | Out-File -FilePath "$InstallDirectory\env.bat" -Encoding ASCII
@@ -475,26 +523,31 @@ call "%PYTHON_VENV%\Scripts\activate.bat"
 `$gperf_path = `"$`ToolsDir\gperf\bin`"
 `$ninja_path = `"$`ToolsDir\ninja`"
 `$git_path = `"$`ToolsDir\git\bin`"
-`$SevenZ_path = `"C:\Program Files\7-Zip`"
-`$python_path = `"$`ToolsDir\python\python-3.10.11.amd64;$`ToolsDir\python\python-3.10.11.amd64\Scripts`"
+`$seven_z_path = `"$SevenZPath`"
+`$python_path = `"$`ToolsDir\python\python-${WinPythonVersion}.amd64;$`ToolsDir\python\python-${WinPythonVersion}.amd64\Scripts`"
 `$wget_path = `"$`ToolsDir\wget`"
 
-`$env:PATH = `"`$cmake_path;`$dtc_path;`$gperf_path;`$ninja_path;`$python_path;`$wget_path;`$git_path;`$SevenZ_path;`" + `$env:PATH
+`$env:PATH = `"`$cmake_path;`$dtc_path;`$gperf_path;`$ninja_path;`$python_path;`$wget_path;`$git_path;`$seven_z_path;`" + `$env:PATH
 
 . `"`$BaseDir\.venv\Scripts\Activate.ps1`"
 
 "@ | Out-File -FilePath "$InstallDirectory\env.ps1" -Encoding ASCII
+
+@"
+Script Version: $ZinstallerVersion
+Script MD5: $ZinstallerMd5
+tools.yml MD5: $ToolsYmlMd5
+"@ | Out-File -FilePath "$InstallDirectory\zinstaller_version" -Encoding ASCII
 
     Write-Output "using cmd: $InstallDirectory\env.bat"
     Write-Output "using powershell: $InstallDirectory\env.ps1"
 
     Print-Title "Clean up"
     Remove-Item -Path $TemporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
-
 }
 
 # Define the list of default packages in a single location
-$defaultPackages = @('python', 'cmake', 'ninja', 'git', 'gperf', 'dtc', 'wget')
+$defaultPackages = @('python', 'cmake', 'ninja', 'git', 'gperf', 'dtc', 'wget', '7z')
 
 function Check-Package {
     param (
@@ -511,11 +564,14 @@ function Check-Package {
         'gperf'    { $versionCommand = 'gperf --version' }
         'dtc'      { $versionCommand = 'dtc --version' }
         'wget'     { $versionCommand = 'wget.exe --version' }
+        '7z'       { $versionCommand = '7z' }
         Default    { Write-Host "$package [NOT INSTALLED]"; return $false }
     }
 
     try {
-        $version = Invoke-Expression $versionCommand 2>&1 | Select-Object -First 1
+		#check the first two lines and select the first non-empty one, because 7z has the first line empty
+        $version = Invoke-Expression $versionCommand 2>&1 | Select-Object -First 2 | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1
+
         switch ($package) {
             'python'   { if ($version -match 'Python (\S+)') { $version = $matches[1] } }
             'cmake'    { if ($version -match 'version (\S+)') { $version = $matches[1] } }
@@ -524,6 +580,7 @@ function Check-Package {
             'gperf'    { if ($version -match 'GNU gperf (\S+)') { $version = $matches[1] } }
             'dtc'      { if ($version -match 'Version: DTC (\S+)') { $version = $matches[1] } }
             'wget'     { if ($version -match 'GNU Wget (\S+) built on') { $version = $matches[1] } }
+            '7z'       { if ($version -match '7-Zip\s+(\d+\.\d+\s*\(\S+\))') { $version = $matches[1] } }
         }
     } catch {
         Write-Host "$package [NOT INSTALLED]"
@@ -565,6 +622,3 @@ if ($checkInstalled) {
     $returnCode = Check-Packages
     exit $returnCode
 }
-
-
-#should remove tmp dir
