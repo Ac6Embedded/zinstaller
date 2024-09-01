@@ -347,7 +347,7 @@ if (! $OnlyCheck -or $ReinstallVenv) {
         Write-Host "7-Zip is not installed."
 		if($Global) {
             Write-Host "Installing now 7z Global..."
-            $SevenZInstallerName = "7z.exe"
+            $SevenZInstallerName = "7z-installer.exe"
             Download-FileWithHashCheck $seven_z_array[0] $seven_z_array[1] $SevenZInstallerName
 		
             $SevenZInstallerPath = Join-Path -Path $DownloadDirectory -ChildPath $SevenZInstallerName

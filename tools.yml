@@ -18,12 +18,12 @@ other_content:
 - tool: seven_z
   os:
     windows:
-      source: https://www.7-zip.org/a/7z2405-x64.exe
-      sha256: 12EF1C8127EC3465520E4CFD23605B708D81A5A2CF37BA124F018E5C094DE0D9
+      source: https://7-zip.org/a/7z2408-x64.exe
+      sha256: 67cb9d3452c9dd974b04f4a5fd842dbcba8184f2344ff72e3662d7cdb68b099b
 - tool: seven_z_portable
   os:
     windows:
-      source: https://cloud.ac6.fr/index.php/s/ES63tZ6zfJANkJD/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/windows/7-Zip-24.08.exe
       sha256: 07c508289d4dd0a90b8a4622affec1a418f0d61d732dea2a6e7d928cc25a07de
 - tool: zstd
   os:
@@ -92,7 +92,7 @@ zephyr_content:
 - tool: openssl
   os:
     linux:
-      source: https://cloud.ac6.fr/index.php/s/6fin9KTS8rHKRyw/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/linux/openssl-1.1.1t.tar.bz2
       sha256: 943437123834d29b546a2d097e7eab7157202cd17669a130eea2eea682043a23
 - tool: git
   os:
@@ -110,7 +110,7 @@ zephyr_content:
 - tool: python_portable
   os:
     linux:
-      source: https://cloud.ac6.fr/index.php/s/PajpKYct64nRNKR/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/linux/cpython-3.11.9-linux-x86_64.tar.gz
       sha256: 6c383ec5dee127aed510acbf65a1eeaec7468066a6368a88eda73e4b5549bfd2
     windows:
       source: https://github.com/winpython/winpython/releases/download/7.1.20240203final/Winpython64-3.11.8.0dot.exe
@@ -121,11 +121,11 @@ zephyr_content:
 - tool: python_requirements
   os:
     windows:
-      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/requirements-3.7.0.zip
       sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
     linux:
-      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/requirements-3.7.0.zip
       sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
     darwin:
-      source: https://cloud.ac6.fr/index.php/s/79Jqg7rjfxLGTbo/download
+      source: https://www.ac6-tools.com/downloads/zinstaller/tools/requirements-3.7.0.zip
       sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
