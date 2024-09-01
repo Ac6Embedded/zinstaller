@@ -3,7 +3,7 @@ param (
     [switch]$OnlyCheck,
     [switch]$ReinstallVenv,
     [switch]$Global,
-    [string]$OnlySdk,
+    [string]$SelectSdk,
     [switch]$Help,
     [switch]$Version
 )
@@ -31,7 +31,7 @@ Options:
   -InstallSdk            Additionally install the SDK after installing the packages
   -ReinstallVenv         Remove .venv folder, create a new .venv, install requirements and west
   -Global                Install Python and 7z as global packages (not portable)
-  -OnlySdk               Specify space-separated SDKs to install. E.g., 'arm aarch64'
+  -SelectSdk             Specify space-separated SDKs to install. E.g., 'arm aarch64'
 
 Arguments:
   InstallDir             Optional. The directory where the Zephyr environment will be installed. Defaults to '$env:USERPROFILE\.zinstaller'
@@ -42,7 +42,7 @@ Examples:
   install.ps1 -OnlyCheck
   install.ps1 -ReinstallVenv
   install.ps1 "C:\my\install\path" -OnlyCheck
-  install.ps1 -OnlySdk "arm aarch64"
+  install.ps1 -SelectSdk "arm aarch64"
 "@
     Write-Host $helpText
 }
@@ -487,14 +487,14 @@ if (! $OnlyCheck -or $ReinstallVenv) {
     Print-Title "Default Zephyr SDK"
 	$SdkVersion = "0.16.8"
 	$SdkName = "zephyr-sdk-${SdkVersion}"
-	if ($OnlySdk) {
+	if ($SelectSdk) {
 		$SdkBaseUrl = "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SdkVersion}"
 		$SdkMinimalUrl = "${SdkBaseUrl}/zephyr-sdk-${SdkVersion}_windows-x86_64_minimal.7z"
 		Write-Host "Installing minimal SDK for $SdkList"
 		Download-WithoutCheck "${SdkMinimalUrl}" "${SdkName}.7z"
 		Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\${SdkName}.7z" -DestinationDirectory $ToolsDirectory
 
-		$SdkList = $OnlySdk.Split(" ")
+		$SdkList = $SelectSdk.Split(" ")
 		
 		foreach ($sdk in $SdkList) {
 			$ToolchainName = "${sdk}-zephyr-elf"
