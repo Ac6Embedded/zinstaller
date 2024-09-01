@@ -8,7 +8,7 @@ Using powershell (not administrator)
 ```
 $ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
-The script will automatically create environnement scripts in $env:USERPROFILE\\.zinstaller\\ that should be sources to have access to west and the other tools
+The script will automatically create environnement scripts in $env:USERPROFILE\\.zinstaller\\ that should be sourced so you access to west and the other tools
 
 ### Activate west environnement
 Using PowerShell:
