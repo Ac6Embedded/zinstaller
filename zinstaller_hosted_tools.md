@@ -84,15 +84,3 @@ Build portable Python:
 ```bash
 /tmp/pp/bin/portable-python build 3.11.9
 ```
-
-## Testing
-
-Initialize a Zephyr project:
-```bash
-west init zephyrtest && cd zephyrtest && west update
-```
-
-Build the Hello World sample:
-```bash
-ZEPHYR_SDK_INSTALL_DIR=~/.zinstaller/zephyr-sdk-0.16.8 west build -b stm32f4_disco zephyr/samples/hello_world
-```
