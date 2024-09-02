@@ -337,11 +337,6 @@ if [[ $non_root_packages == true ]]; then
       tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
     fi
 	
-    if [[ $install_sdk_bool == true ]]; then
-        pr_title "Install Zephyr SDK"
-        yes | bash "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
-    fi
-	
     cmake_path="$INSTALL_DIR/tools/$CMAKE_FOLDER_NAME/bin"
     python_path="$INSTALL_DIR/tools/$PYTHON_FOLDER_NAME/bin"
     ninja_path="$INSTALL_DIR/tools/ninja"
@@ -349,8 +344,13 @@ if [[ $non_root_packages == true ]]; then
 
     export PATH="$python_path:$ninja_path:$cmake_path:$openssl_path/usr/local/bin:$PATH"
     export LD_LIBRARY_PATH="$openssl_path/usr/local/lib:$LD_LIBRARY_PATH"
-
-    pr_title "Python VENV"
+	
+	if [[ $install_sdk_bool == true ]]; then
+        pr_title "Install Zephyr SDK"
+        yes | bash "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
+    fi
+    
+	pr_title "Python VENV"
 	install_python_venv "$INSTALL_DIR" "$TMP_DIR"
 
     if ! command -v west &> /dev/null; then
