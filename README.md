@@ -42,8 +42,6 @@ $ source ~/.zinstaller/env.sh
 
 Initialize and build Hello World:
 ```
-$ bash
-west init zephyrtest && cd zephyrtest && west update
-$ bash
-ZEPHYR_SDK_INSTALL_DIR=~/.zinstaller/zephyr-sdk-0.16.8 west build -b stm32f4_disco zephyr/samples/hello_world
+$ west init zephyrtest && cd zephyrtest && west update
+$ ZEPHYR_SDK_INSTALL_DIR=~/.zinstaller/zephyr-sdk-0.16.8 west build -b stm32f4_disco zephyr/samples/hello_world
 ```
