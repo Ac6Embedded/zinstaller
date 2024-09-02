@@ -339,7 +339,7 @@ if [[ $non_root_packages == true ]]; then
 	
     if [[ $install_sdk_bool == true ]]; then
         pr_title "Install Zephyr SDK"
-        yes | bash "$TOOLS_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
+        yes | bash "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
     fi
 	
     cmake_path="$INSTALL_DIR/tools/$CMAKE_FOLDER_NAME/bin"
