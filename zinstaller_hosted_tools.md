@@ -55,7 +55,7 @@ tar cjf openssl-1.1.1t.tar.bz2 openssl-1.1.1t
 
 ## Portable Python (Linux)
 
-This setup is based on the [portable-python](https://github.com/codrsquad/portable-python) project. Is is compiled on Ubuntu 20.04 host.
+This setup is based on the [portable-python](https://github.com/codrsquad/portable-python) project. Created on an Ubuntu 20.04 host.
 
 Install the required dependencies:
 ```bash
