@@ -111,7 +111,7 @@ zephyr_content:
   os:
     linux:
       source: https://www.ac6-tools.com/downloads/zinstaller/tools/linux/cpython-3.11.9-linux-x86_64.tar.gz
-      sha256: 6c383ec5dee127aed510acbf65a1eeaec7468066a6368a88eda73e4b5549bfd2
+      sha256: 1229384bd7c4610b1ba4e80fd78f340bac3f9d8dac189d21105294da03475069
     windows:
       source: https://github.com/winpython/winpython/releases/download/7.1.20240203final/Winpython64-3.11.8.0dot.exe
       sha256: 54c501574df21c3c1883fda4f5e8ff73883ede72844ae6700252143ecc024d47
