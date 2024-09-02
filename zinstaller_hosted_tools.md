@@ -59,8 +59,8 @@ This setup is based on the [portable-python](https://github.com/codrsquad/portab
 
 Install the required dependencies:
 ```bash
-sudo apt-get install python3-pip python3-setuptools python3-tk libffi-dev \\
-libgdbm-compat-dev libbz2-dev libreadline-dev libncurses-dev libssl-dev \\
+sudo apt-get install python3-pip python3-setuptools python3-tk libffi-dev \
+libgdbm-compat-dev libbz2-dev libreadline-dev libncurses-dev libssl-dev \
 libsqlite3-dev libdb-dev libgdbm-dev tk-dev tcl-dev
 ```
 
