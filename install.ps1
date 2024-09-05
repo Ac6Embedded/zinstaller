@@ -113,21 +113,27 @@ function Print-Warning {
 
 function Install-PythonVenv {
     param (
-        [string]$InstallDirectory,
-        [string]$WorkDirectory,
-        [string]$RequirementName
+        [string]$InstallDirectory
     )
 	
-    Print-Title "Requirements"
-	$RequirementName = "requirements"
-    $RequirementZipName =  $RequirementName + ".zip"
-    Download-FileWithHashCheck $python_requirements_array[0] $python_requirements_array[1] $RequirementZipName
-    Extract-ArchiveFile -ZipFilePath "$DownloadDirectory\$RequirementZipName" -DestinationDirectory "$WorkDirectory"
-
+    Print-Title "Zephyr Python-Requirements"
+	$RequirementsDirectory = "$TemporaryDirectory\requirements"
+	$RequirementsBaseUrl = "https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/main/scripts"
+	
+	New-Item -Path "$RequirementsDirectory" -ItemType Directory -Force > $null 2>&1
+	
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements.txt" "requirements.txt"
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements-run-test.txt" "requirements-run-test.txt"
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements-extras.txt" "requirements-extras.txt"
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements-compliance.txt" "requirements-compliance.txt"
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements-build-test.txt" "requirements-build-test.txt"
+	Download-WithoutCheck "${$RequirementsBaseUrl}/requirements-base.txt" "requirements-base.txt"
+	Move-Item -Path "$DownloadDirectory/require*.txt" -Destination "$RequirementsDirectory"
+	
     python -m venv "$InstallDirectory\.venv"
     . "$InstallDirectory\.venv\Scripts\Activate.ps1"
     python -m pip install setuptools wheel west --quiet
-    python -m pip install -r "$WorkDirectory\$RequirementName\requirements.txt" --quiet
+    python -m pip install -r "$RequirementsDirectory\requirements.txt" --quiet
 }
 
 
@@ -384,9 +390,9 @@ if (! $OnlyCheck -or $ReinstallVenv) {
             Remove-Item -Path "$InstallDirectory\.venv" -Recurse -Force
 		}
 
-		. "$BaseDirectory\env.ps1" *>$null
+		. "$InstallDirectory\env.ps1" *>$null
 
-		Install-PythonVenv -InstallDirectory $InstallDirectory -WorkDirectory $WorkDirectory -RequirementName $RequirementName
+		Install-PythonVenv -InstallDirectory $InstallDirectory -WorkDirectory $WorkDirectory
 	    Remove-Item -Path $TemporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
 		exit
 	}
@@ -563,7 +569,7 @@ if (! $OnlyCheck -or $ReinstallVenv) {
         & "$InstallDirectory\$SdkName\setup.cmd" /c
     }
     Print-Title "Python VENV"
-    Install-PythonVenv -InstallDirectory $InstallDirectory -WorkDirectory $WorkDirectory -RequirementName $RequirementName
+    Install-PythonVenv -InstallDirectory $InstallDirectory
     
 @"
 @echo off
