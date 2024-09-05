@@ -120,9 +120,6 @@ zephyr_content:
       sha256: xxx
 - tool: python_requirements
   os:
-    windows:
-      source: https://www.ac6-tools.com/downloads/zinstaller/tools/requirements-3.7.0.zip
-      sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
     linux:
       source: https://www.ac6-tools.com/downloads/zinstaller/tools/requirements-3.7.0.zip
       sha256: 112719f1c267be771e73f6c23adc9d9077515895f888bf9b8f364ec74b44cd2a
