@@ -9,11 +9,13 @@ YAML_FILE="$SCRIPT_DIR/tools.yml"
 root_packages=true
 non_root_packages=true
 check_installed_bool=true
+skip_sdk_bool=false
 install_sdk_bool=false
 reinstall_venv_bool=false
+portable=false
 INSTALL_DIR=""
 
-zinstaller_version="0.3"
+zinstaller_version="0.6"
 zinstaller_md5=$(md5sum "$BASH_SOURCE")
 tools_yml_md5=$(md5sum "$YAML_FILE")
 
@@ -27,8 +29,10 @@ OPTIONS:
   --only-root               Only install packages that require root privileges.
   --only-without-root       Only install packages that do not require root privileges.
   --only-check              Only check the installation status of the packages without installing them.
+  --skip-sdk                Skip default SDK download
   --install-sdk             Additionally install the SDK after installing the packages.
   --reinstall-venv          Remove existing virtual environment and create a new one.
+  --portable                Install portable Python instead of global
   --select-sdk="SDK1 SDK2"  Specify space-separated SDKs to install. E.g., 'arm aarch64'
 
 ARGUMENTS:
@@ -61,6 +65,9 @@ while [[ "$#" -gt 0 ]]; do
       root_packages=false
       non_root_packages=false
       ;;
+    --skip-sdk)
+      skip_sdk_bool=true
+      ;;
     --install-sdk)
       install_sdk_bool=true
       ;;
@@ -68,6 +75,9 @@ while [[ "$#" -gt 0 ]]; do
       reinstall_venv_bool=true
       root_packages=false
       check_installed_bool=false
+      ;;
+    --portable)
+      portable=true
       ;;
     --select-sdk=*)
       selected_sdk_list="${1#*=}"
@@ -162,25 +172,74 @@ download_and_check_hash() {
     fi
 }
 
+# Function to download the file and check its SHA-256 hash
+download() {
+    local source=$1
+    local filename=$2
+
+    # Full path where the file will be saved
+    local file_path="$DL_DIR/$filename"
+
+    # Download the file using wget
+    wget --no-check-certificate -q "$source" -O "$file_path"
+
+    # Check if the download was successful
+    if [ ! -f "$file_path" ]; then
+        pr_error 1 "Error: Failed to download the file."
+        exit 1
+    fi
+}
+
 install_python_venv() {
     local install_directory=$1
     local work_directory=$2
 
-    pr_title "Python Requirements"
-    REQUIREMENTS_NAME="requirements"
-    REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
+    # pr_title "Python Requirements"
+    # REQUIREMENTS_NAME="requirements"
+    # REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
 
-    download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
-    unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
+    # download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
+    # unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
+
+    # python3 -m venv "$install_directory/.venv"
+    # source "$install_directory/.venv/bin/activate"
+    # python3 -m pip install setuptools wheel west pyocd --quiet
+    # python3 -m pip install -r "$work_directory/$REQUIREMENTS_NAME/requirements.txt" --quiet
+
+    pr_title "Zephyr Python Requirements"
+
+    REQUIREMENTS_DIR="$TMP_DIR/requirements"
+    REQUIREMENTS_BASEURL="https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/main/scripts"
+    
+    mkdir -p "$REQUIREMENTS_DIR"
+
+    download "$REQUIREMENTS_BASEURL/requirements.txt" "requirements.txt"
+    download "$REQUIREMENTS_BASEURL/requirements-run-test.txt" "requirements-run-test.txt"
+    download "$REQUIREMENTS_BASEURL/requirements-extras.txt" "requirements-extras.txt"
+    download "$REQUIREMENTS_BASEURL/requirements-compliance.txt" "requirements-compliance.txt"
+    download "$REQUIREMENTS_BASEURL/requirements-build-test.txt" "requirements-build-test.txt"
+    download "$REQUIREMENTS_BASEURL/requirements-base.txt" "requirements-base.txt"
+    mv "$DL_DIR/requirements.txt" "$REQUIREMENTS_DIR"
+    mv "$DL_DIR/requirements-run-test.txt" "$REQUIREMENTS_DIR"
+    mv "$DL_DIR/requirements-extras.txt" "$REQUIREMENTS_DIR"
+    mv "$DL_DIR/requirements-compliance.txt" "$REQUIREMENTS_DIR"
+    mv "$DL_DIR/requirements-build-test.txt" "$REQUIREMENTS_DIR"
+    mv "$DL_DIR/requirements-base.txt" "$REQUIREMENTS_DIR"
 
     python3 -m venv "$install_directory/.venv"
     source "$install_directory/.venv/bin/activate"
     python3 -m pip install setuptools wheel west --quiet
-    python3 -m pip install -r "$work_directory/$REQUIREMENTS_NAME/requirements.txt" --quiet
+    python3 -m pip install -r "$REQUIREMENTS_DIR/requirements.txt" --quiet
 }
 
 if [[ $root_packages == true ]]; then
     pr_title "Install non portable tools"
+
+    # Install Python3 as package if not portable 
+    python_pkg=""
+    if [ $portable = false ]; then
+      python_pkg="python3"
+    fi
 
     if [[ -f /etc/os-release ]]; then
         . /etc/os-release
@@ -194,23 +253,23 @@ if [[ $root_packages == true ]]; then
                 exit 3
             fi
             sudo apt-get update
-            sudo apt -y install --no-install-recommends git gperf ccache dfu-util wget xz-utils unzip file make libsdl2-dev libmagic1
+            sudo apt -y install --no-install-recommends git gperf ccache dfu-util wget xz-utils unzip file make libsdl2-dev libmagic1 ${python_pkg}
             ;;
         fedora)
             echo "This is Fedora."
             sudo dnf upgrade
             sudo dnf group install "Development Tools" "C Development Tools and Libraries"
-            sudo dnf install gperf dfu-util wget which xz file SDL2-devel
+            sudo dnf install gperf dfu-util wget which xz file SDL2-devel ${python_pkg}
             ;;
         clear-linux-os)
             echo "This is Clear Linux."
             sudo swupd update
-            sudo swupd bundle-add c-basic dev-utils dfu-util dtc os-core-dev
+            sudo swupd bundle-add c-basic dev-utils dfu-util dtc os-core-dev ${python_pkg}
             ;;
         arch)
             echo "This is Arch Linux."
             sudo pacman -Syu
-            sudo pacman -S git cmake ninja gperf ccache dfu-util dtc wget xz file make
+            sudo pacman -S git cmake ninja gperf ccache dfu-util dtc wget xz file make ${python_pkg}
             ;;
         *)
             pr_error 3 "Distribution is not recognized."
@@ -268,16 +327,16 @@ if [[ $non_root_packages == true ]]; then
 
     source $MANIFEST_FILE
 
-	if [[ $reinstall_venv_bool == true ]]; then
-		pr_title "Reinstalling Python VENV"
-		if [ -d "$INSTALL_DIR/.venv" ]; then
-			rm -rf "$INSTALL_DIR/.venv"
-		fi
-		source "$ENV_FILE" &> /dev/null
-		install_python_venv "$INSTALL_DIR" "$TMP_DIR"
+    if [[ $reinstall_venv_bool == true ]]; then
+      pr_title "Reinstalling Python VENV"
+      if [ -d "$INSTALL_DIR/.venv" ]; then
+        rm -rf "$INSTALL_DIR/.venv"
+      fi
+      source "$ENV_FILE" &> /dev/null
+      install_python_venv "$INSTALL_DIR" "$TMP_DIR"
 	    rm -rf $TMP_DIR
-		exit 0
-	fi
+      exit 0
+    fi
 	
     pr_title "OpenSSL"
     OPENSSL_FOLDER_NAME="openssl-1.1.1t"
@@ -285,11 +344,13 @@ if [[ $non_root_packages == true ]]; then
     download_and_check_hash ${openssl[source]} ${openssl[sha256]} "$OPENSSL_ARCHIVE_NAME"
     tar xf "$DL_DIR/$OPENSSL_ARCHIVE_NAME" -C "$TOOLS_DIR"
 
-    pr_title "Python"
-    PYTHON_FOLDER_NAME="3.11.9"
-    PYTHON_ARCHIVE_NAME="cpython-${PYTHON_FOLDER_NAME}-linux-x86_64.tar.gz"
-    download_and_check_hash ${python_portable[source]} ${python_portable[sha256]} "$PYTHON_ARCHIVE_NAME"
-    tar xf "$DL_DIR/$PYTHON_ARCHIVE_NAME" -C "$TOOLS_DIR"
+    if [ $portable = true ]; then
+      pr_title "Python"
+      PYTHON_FOLDER_NAME="3.11.9"
+      PYTHON_ARCHIVE_NAME="cpython-${PYTHON_FOLDER_NAME}-linux-x86_64.tar.gz"
+      download_and_check_hash ${python_portable[source]} ${python_portable[sha256]} "$PYTHON_ARCHIVE_NAME"
+      tar xf "$DL_DIR/$PYTHON_ARCHIVE_NAME" -C "$TOOLS_DIR"
+    fi
 
     pr_title "Ninja"
     NINJA_ARCHIVE_NAME="ninja-linux.zip"
@@ -303,38 +364,44 @@ if [[ $non_root_packages == true ]]; then
     download_and_check_hash ${cmake[source]} ${cmake[sha256]} "$CMAKE_ARCHIVE_NAME"
     tar xf "$DL_DIR/$CMAKE_ARCHIVE_NAME" -C "$TOOLS_DIR"
 
-    pr_title "Zephyr SDK"
-	SDK_VERSION="0.16.8"
-	ZEPHYR_SDK_FOLDER_NAME="zephyr-sdk-${SDK_VERSION}"
-
-    if [ -n "$selected_sdk_list" ]; then
-      # If --select-sdk was used, download and extract the minimal SDK and specified toolchains
-	  
-      SDK_BASE_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}"
-      SDK_MINIMAL_URL="${SDK_BASE_URL}/zephyr-sdk-${SDK_VERSION}_linux-x86_64_minimal.tar.xz"
-      MINIMAL_ARCHIVE_NAME="zephyr-sdk-${SDK_VERSION}_linux-x86_64_minimal.tar.xz"
-    
-      echo "Installing minimal SDK for $selected_sdk_list"
-      wget --no-check-certificate -q -O "$DL_DIR/$MINIMAL_ARCHIVE_NAME" "$SDK_MINIMAL_URL"
-      tar xf "$DL_DIR/$MINIMAL_ARCHIVE_NAME" -C "$INSTALL_DIR"
-    
-      # Loop through the selected SDKs and download/extract each toolchain
-      IFS=' ' read -r -a sdk_array <<< "$selected_sdk_list"
-      for sdk in "${sdk_array[@]}"; do
-        toolchain_name="${sdk}-zephyr-elf"
-        [ "$sdk" = "arm" ] && toolchain_name="${sdk}-zephyr-eabi"
-    
-        toolchain_url="${SDK_BASE_URL}/toolchain_linux-x86_64_${toolchain_name}.tar.xz"
-        toolchain_archive_name="toolchain_linux-x86_64_${toolchain_name}.tar.xz"
-    
-        echo "Downloading and extracting $toolchain_name"
-        wget --no-check-certificate -q -O "$DL_DIR/$toolchain_archive_name" "$toolchain_url"
-        tar xf "$DL_DIR/$toolchain_archive_name" -C "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME"
-      done
-    else
-      ZEPHYR_SDK_ARCHIVE_NAME="zephyr-sdk-${SDK_VERSION}_linux-x86_64.tar.xz"
-      download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
-      tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
+    if [ $skip_sdk_bool = false ]; then
+      pr_title "Zephyr SDK"
+      SDK_VERSION="0.16.8"
+      ZEPHYR_SDK_FOLDER_NAME="zephyr-sdk-${SDK_VERSION}"
+      if [ -n "$selected_sdk_list" ]; then
+        # If --select-sdk was used, download and extract the minimal SDK and specified toolchains
+	    
+        SDK_BASE_URL="https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}"
+        SDK_MINIMAL_URL="${SDK_BASE_URL}/zephyr-sdk-${SDK_VERSION}_linux-x86_64_minimal.tar.xz"
+        MINIMAL_ARCHIVE_NAME="zephyr-sdk-${SDK_VERSION}_linux-x86_64_minimal.tar.xz"
+      
+        echo "Installing minimal SDK for $selected_sdk_list"
+        wget --no-check-certificate -q -O "$DL_DIR/$MINIMAL_ARCHIVE_NAME" "$SDK_MINIMAL_URL"
+        tar xf "$DL_DIR/$MINIMAL_ARCHIVE_NAME" -C "$INSTALL_DIR"
+      
+        # Loop through the selected SDKs and download/extract each toolchain
+        IFS=' ' read -r -a sdk_array <<< "$selected_sdk_list"
+        for sdk in "${sdk_array[@]}"; do
+          toolchain_name="${sdk}-zephyr-elf"
+          [ "$sdk" = "arm" ] && toolchain_name="${sdk}-zephyr-eabi"
+      
+          toolchain_url="${SDK_BASE_URL}/toolchain_linux-x86_64_${toolchain_name}.tar.xz"
+          toolchain_archive_name="toolchain_linux-x86_64_${toolchain_name}.tar.xz"
+      
+          echo "Downloading and extracting $toolchain_name"
+          wget --no-check-certificate -q -O "$DL_DIR/$toolchain_archive_name" "$toolchain_url"
+          tar xf "$DL_DIR/$toolchain_archive_name" -C "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME"
+        done
+      else
+        ZEPHYR_SDK_ARCHIVE_NAME="zephyr-sdk-${SDK_VERSION}_linux-x86_64.tar.xz"
+        download_and_check_hash ${zephyr_sdk[source]} ${zephyr_sdk[sha256]} "$ZEPHYR_SDK_ARCHIVE_NAME"
+        tar xf "$DL_DIR/$ZEPHYR_SDK_ARCHIVE_NAME" -C "$INSTALL_DIR"
+      fi
+      
+      if [[ $install_sdk_bool == true ]]; then
+          pr_title "Install Zephyr SDK"
+          yes | bash "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
+      fi
     fi
 	
     cmake_path="$INSTALL_DIR/tools/$CMAKE_FOLDER_NAME/bin"
@@ -345,13 +412,9 @@ if [[ $non_root_packages == true ]]; then
     export PATH="$python_path:$ninja_path:$cmake_path:$openssl_path/usr/local/bin:$PATH"
     export LD_LIBRARY_PATH="$openssl_path/usr/local/lib:$LD_LIBRARY_PATH"
 	
-	if [[ $install_sdk_bool == true ]]; then
-        pr_title "Install Zephyr SDK"
-        yes | bash "$INSTALL_DIR/$ZEPHYR_SDK_FOLDER_NAME/setup.sh"
-    fi
-    
-	pr_title "Python VENV"
-	install_python_venv "$INSTALL_DIR" "$TMP_DIR"
+
+    pr_title "Python VENV"
+    install_python_venv "$INSTALL_DIR" "$TMP_DIR"
 
     if ! command -v west &> /dev/null; then
     echo "West is not available. Something is wrong !!"
@@ -391,7 +454,7 @@ tools.yml MD5: $tools_yml_md5
 EOF
     echo "Source me: . $ENV_FILE"
     
-	pr_title "Clean up"
+    pr_title "Clean up"
     rm -rf $TMP_DIR
 fi
 
