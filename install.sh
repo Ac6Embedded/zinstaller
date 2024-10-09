@@ -194,18 +194,6 @@ install_python_venv() {
     local install_directory=$1
     local work_directory=$2
 
-    # pr_title "Python Requirements"
-    # REQUIREMENTS_NAME="requirements"
-    # REQUIREMENTS_ZIP_NAME="$REQUIREMENTS_NAME".zip
-
-    # download_and_check_hash ${python_requirements[source]} ${python_requirements[sha256]} "$REQUIREMENTS_ZIP_NAME"
-    # unzip -o "$DL_DIR/$REQUIREMENTS_ZIP_NAME" -d "$TMP_DIR/"
-
-    # python3 -m venv "$install_directory/.venv"
-    # source "$install_directory/.venv/bin/activate"
-    # python3 -m pip install setuptools wheel west pyocd --quiet
-    # python3 -m pip install -r "$work_directory/$REQUIREMENTS_NAME/requirements.txt" --quiet
-
     pr_title "Zephyr Python Requirements"
 
     REQUIREMENTS_DIR="$TMP_DIR/requirements"
@@ -229,6 +217,8 @@ install_python_venv() {
     python3 -m venv "$install_directory/.venv"
     source "$install_directory/.venv/bin/activate"
     python3 -m pip install setuptools wheel west --quiet
+    python3 -m pip install git+https://github.com/HBehrens/puncover --user --quiet
+    python3 -m pip install anytree --quiet
     python3 -m pip install -r "$REQUIREMENTS_DIR/requirements.txt" --quiet
 }
 
@@ -439,7 +429,24 @@ openssl_path="\$base_dir/tools/$OPENSSL_FOLDER_NAME"
 export PATH="\$python_path:\$ninja_path:\$cmake_path:\$openssl_path/usr/local/bin:\$PATH"
 export LD_LIBRARY_PATH="\$openssl_path/usr/local/lib:\$LD_LIBRARY_PATH"
 
-source \$base_dir/.venv/bin/activate
+# Default virtual environment activation script path
+default_venv_activate_path="\$base_dir/.venv/bin/activate"
+
+# Use the provided PYTHON_VENV_ACTIVATE_PATH if set and not empty, otherwise use the default path
+if [[ -n "\$PYTHON_VENV_ACTIVATE_PATH" ]]; then
+    venv_activate_path="\$PYTHON_VENV_ACTIVATE_PATH"
+else
+    venv_activate_path="\$default_venv_activate_path"
+fi
+
+# Check if the activation script exists at the specified path
+if [[ -f "\$venv_activate_path" ]]; then
+    # Source the virtual environment activation script
+    source "\$venv_activate_path"
+    echo "Activated virtual environment at \$venv_activate_path"
+else
+    echo "Error: Virtual environment activation script not found at \$venv_activate_path."
+fi
 
 if ! command -v west &> /dev/null; then
    echo "West is not available. Something is wrong !!"
